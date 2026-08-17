@@ -18,7 +18,7 @@ forzando el recompute (misma logica que ya usa
 
 import logging
 
-from odoo.upgrade import util
+from odoo import SUPERUSER_ID, api
 
 _logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ def migrate(cr, version):
 
     _logger.info("account_payment_pro: running post-migrate for %s", version)
 
-    env = util.env(cr)
+    env = api.Environment(cr, SUPERUSER_ID, {})
     payments = env["account.payment"].search(
         [
             ("outstanding_account_id", "=", False),
@@ -48,10 +48,16 @@ def migrate(cr, version):
             ("payment_method_line_id.payment_account_id", "!=", False),
         ]
     )
+    if not payments:
+        _logger.info("account_payment_pro: no check payments need outstanding_account_id backfill")
+        return
+
     _logger.info(
         "account_payment_pro: backfilling outstanding_account_id on %s check payments",
         len(payments),
     )
-    payments.invalidate_recordset(["outstanding_account_id"])
-    payments.modified(["payment_method_line_id"])
+    # Se invoca el compute del core directamente en vez de forzar el recompute via
+    # modified('payment_method_line_id'): misma logica, sin arrastrar el recompute
+    # del resto de los campos que dependen de payment_method_line_id.
+    payments._compute_outstanding_account_id()
     payments.flush_recordset(["outstanding_account_id"])
