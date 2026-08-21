@@ -79,3 +79,24 @@ def migrate(cr, version):
     if not openupgrade.column_exists(cr, "account_payment", "counterpart_currency_amount"):
         cr.execute("ALTER TABLE account_payment ADD COLUMN counterpart_currency_amount numeric")
         _logger.info("account_payment_pro: pre-created counterpart_currency_amount column")
+
+    # ── 5. Limpiar vistas obsoletas que causan ParseError en res.config.settings ───
+    # Vistas de módulos obsoletos (o no instalables en 19.0, ej: account_accountant_ux)
+    # que referencian campos eliminados en Python (ej: use_search_filter_amount)
+    # hacen fallar la validación al cargar vistas de res.config.settings.
+    cr.execute("""
+        DELETE FROM ir_ui_view
+        WHERE id IN (
+            SELECT res_id FROM ir_model_data
+            WHERE model = 'ir.ui.view'
+            AND module = 'account_accountant_ux'
+        )
+        OR arch_db LIKE '%use_search_filter_amount%'
+    """)
+    cr.execute("""
+        DELETE FROM ir_model_data
+        WHERE model = 'ir.ui.view'
+        AND module = 'account_accountant_ux'
+    """)
+    _logger.info("account_payment_pro: cleaned up obsolete res.config.settings views")
+
