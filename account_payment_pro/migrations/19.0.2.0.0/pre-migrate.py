@@ -91,7 +91,7 @@ def migrate(cr, version):
             WHERE model = 'ir.ui.view'
             AND module = 'account_accountant_ux'
         )
-        OR arch_db LIKE '%use_search_filter_amount%'
+        OR arch_db::text LIKE '%use_search_filter_amount%'
     """)
     cr.execute("""
         DELETE FROM ir_model_data
