@@ -92,6 +92,7 @@ def migrate(cr, version):
             AND module = 'account_accountant_ux'
         )
         OR arch_db::text LIKE '%use_search_filter_amount%'
+        OR arch_db::text LIKE '%sale_workflow_copy_mode%'
     """)
     cr.execute("""
         DELETE FROM ir_model_data
