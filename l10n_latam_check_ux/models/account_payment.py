@@ -92,8 +92,12 @@ class AccountPayment(models.Model):
         first again. Pushing it one second past the last confirmed operation keeps the chain strict.
         """
         self.ensure_one()
+        return self._get_checks_operation_date(self.l10n_latam_move_check_ids | self.l10n_latam_new_check_ids)
+
+    @api.model
+    def _get_checks_operation_date(self, checks):
         operation_date = fields.Datetime.now()
-        for check in self.l10n_latam_move_check_ids | self.l10n_latam_new_check_ids:
+        for check in checks:
             last_operation_date = check._get_last_operation().l10n_latam_move_check_ids_operation_date
             if last_operation_date:
                 operation_date = max(operation_date, last_operation_date + timedelta(seconds=1))
@@ -351,6 +355,13 @@ class AccountPayment(models.Model):
             super(AccountPayment, with_checks)._synchronize_to_moves(
                 tuple(field for field in changed_fields if field != "amount")
             )
+
+    @api.model
+    def _get_trigger_fields_to_synchronize(self):
+        """Sin ``amount`` en el set de arriba, sacar un cheque de terceros existente tiene que
+        disparar la sincronización por sí solo: si no, el asiento conserva la línea del cheque
+        quitado y la contrapartida por el importe anterior."""
+        return super()._get_trigger_fields_to_synchronize() + ("l10n_latam_move_check_ids",)
 
     def _prepare_paired_payment_values(self):
         """Override to validate check payment method combinations on internal transfers.
